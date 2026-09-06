@@ -173,7 +173,7 @@ Loc retriever fields on abilities and talents (`locTextRetrieverMap`) are resolv
 
 Ability tag values are stable IDs: unsigned 64-bit FNV-1a hashes of uppercase names, rather than GOM node references. For example, `tag.abl.smuggler.healing_ability` hashes to `711562958929859131`.
 
-The extractor inverts the known `tag.*` strings published in Jedipedia's `fnv1a64.js`. Matching hashes anywhere in resolved field values are written as tag names; hashes missing from Jedipedia's dictionary remain unchanged as decimal IDs.
+The extractor inverts the known `tag.*` strings published in Jedipedia's `fnv1a64.js`. Matching hashes anywhere in resolved field values are written as tag names. Unknown hashes that match a known GOM node ID (typically an ability used as a tag key) resolve to that node's FQN; remaining IDs stay decimal.
 
 ## Module layout
 
