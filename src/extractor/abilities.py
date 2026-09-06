@@ -1231,6 +1231,11 @@ def _decode_trigger(
     if tag_keys:
         decoded["tags"] = tag_keys
 
+    exclusion_map = _lookup_list_to_dict(fields.get("effTagExclusions"))
+    excluded_tags = [key for key, enabled in exclusion_map.items() if enabled is True]
+    if excluded_tags:
+        decoded["excluded_tags"] = excluded_tags
+
     if "effParam_TickNumber" in params["int"]:
         decoded["tick_number"] = _int_param(params["int"], "effParam_TickNumber")
 
