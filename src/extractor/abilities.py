@@ -273,6 +273,17 @@ def _decode_generic_ints(
     return ints
 
 
+def _resolved_conditional_tag(int_params: dict[str, Any]) -> str | None:
+    """Return a resolved tag string stored in the int-param ConditionalTag slot."""
+    raw = int_params.get("effParam_ConditionalTag")
+    if raw is None:
+        return None
+    value = str(raw).strip()
+    if not value or value.isdigit():
+        return None
+    return value
+
+
 def _should_drop_condition(condition_name: Any) -> bool:
     return isinstance(condition_name, str) and condition_name in DROPPED_CONDITION_TYPES
 
@@ -1210,6 +1221,9 @@ def _decode_action(
         for key, value in params["string"].items()
         if key not in DROPPED_ACTION_PARAMS and isinstance(value, str)
     }
+    resolved_tag = _resolved_conditional_tag(int_params)
+    if resolved_tag and not strings.get("conditional_tag"):
+        strings["conditional_tag"] = resolved_tag
     if strings:
         generic["strings"] = strings
 
