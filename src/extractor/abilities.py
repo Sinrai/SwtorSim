@@ -1750,9 +1750,8 @@ def _decode_branch(
     if triggers:
         _enrich_trigger_timing(triggers, effect_duration, effect_tick_interval)
         decoded["triggers"] = triggers
-        decoded["timing"] = "triggered"
     else:
-        decoded["timing"] = "immediate"
+        decoded["triggers"] = [{"trigger": "on_apply"}]
     return decoded
 
 

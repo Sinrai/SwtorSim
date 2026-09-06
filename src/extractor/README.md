@@ -116,6 +116,8 @@ Effects that have `duration` and/or `tick_interval` include `effIgnoreAlacrity` 
 
 `modify_stat` actions store `stat` as the `modStatEnum` member name string (e.g. `"STAT_rtg_armor"`), resolved from `client.gom` during parsing.
 
+Every effect branch has a `triggers` list. Apply-time branches (no GOM `effTriggers`) use `[{"trigger": "on_apply"}]`. There is no branch `timing` field.
+
 Triggers may include `effResults` when `effParam_Results` lists Crit (`effResultCrit` only for now). Triggers may include `excluded_tags` from `effTagExclusions` (enabled keys only; omitted when empty).
 
 ### Talents (`data/parsed/tal/`)
