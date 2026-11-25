@@ -3,7 +3,11 @@
 from typing import TYPE_CHECKING #yellow warnings annoy me
 
 from src.swtorsim.combat_math import calculate_hit
-from src.swtorsim.engine import sim_log
+from src.swtorsim.engine import (
+    STACK_SPEND_BEFORE_DAMAGE_TAGS,
+    flush_deferred_damage_triggers,
+    sim_log,
+)
 
 
 if TYPE_CHECKING:
@@ -934,8 +938,15 @@ class CastFinishEvent(Event):
 
         activation = object()
         prev_activation = getattr(sim, "current_activation", None) if sim is not None else None
+        prev_defer = False
+        deferred_start = 0
+        defer_damage = bool(set(getattr(self.ability, "tags", ()) or ()) & STACK_SPEND_BEFORE_DAMAGE_TAGS)
         if sim is not None:
             sim.current_activation = activation
+            if defer_damage:
+                prev_defer = sim.defer_damage_triggers
+                sim.defer_damage_triggers = True
+                deferred_start = len(sim.deferred_damage_triggers)
         try:
             for entry_id in self.entry_effect_ids:
                 self.ability.execute_effect(entry_id, self.caster, self.target, sim)
@@ -956,6 +967,10 @@ class CastFinishEvent(Event):
                 )
         finally:
             if sim is not None:
+                if defer_damage:
+                    sim.defer_damage_triggers = False
+                    flush_deferred_damage_triggers(sim, deferred_start)
+                    sim.defer_damage_triggers = prev_defer
                 sim.current_activation = prev_activation
 
         schedule_next_decision(self.caster, getattr(self.caster, "current_target", self.target), sim)

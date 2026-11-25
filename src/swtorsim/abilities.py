@@ -9,9 +9,21 @@ from src.swtorsim.combat_math import accuracy_roll
 from src.swtorsim.entities import Dummy, Player
 from src.swtorsim.events import ChargeRestoreEvent, DamageHit, HitGroup, ResourceGainEvent
 from src.swtorsim.requirements import validate_all
-from src.swtorsim.engine import sim_log
+from src.swtorsim.engine import (
+    STACK_SPEND_BEFORE_DAMAGE_TAGS,
+    flush_deferred_damage_triggers,
+    sim_log,
+)
 from src.swtorsim.metrics import has_proper_effect_name
 
+
+
+# Zero-duration markers are not stored on the actor. Tactical Advantage and Upper Hand grant a stack
+# when they receive one of these tags, so the instant application still has to announce itself.
+_INSTANT_RECEIVE_TAGS = frozenset({
+    "tag.abl.agent.ta_granter",
+    "tag.abl.smuggler.uh_granter",
+})
 
 
 # --- Effect Data Structures & Execution ---
@@ -408,6 +420,24 @@ class Effect:
                     )
             self.schedule_timer_branches(sim, caster, effect_target, context=branch_ctx, ability=ability)
             return
+
+        if sim is not None and hasattr(sim, "triggers"):
+            received_tags = frozenset(self.tags or ())
+            if received_tags & _INSTANT_RECEIVE_TAGS:
+                enemy = (context or {}).get("enemy_target")
+                if enemy is None:
+                    enemy = effect_target if effect_target is not caster else getattr(caster, "current_target", None)
+                eff_ctx = {
+                    "caster": caster,
+                    "target": effect_target,
+                    "enemy_target": enemy,
+                    "tags": received_tags,
+                    "effect_tags": received_tags,
+                    "ability_spec": getattr(ability, "fqn", None),
+                    "include_effect_refreshes": False,
+                }
+                sim.triggers.dispatch("on_effect_applied", sim, eff_ctx)
+                sim.triggers.dispatch("on_effect_received", sim, eff_ctx)
 
         self.execute_triggered_branches(
             "on_apply",
@@ -1772,8 +1802,15 @@ class Ability:
         dispatch_post_activate = True
         activation = object()
         prev_activation = getattr(sim, "current_activation", None) if sim is not None else None
+        prev_defer = False
+        deferred_start = 0
+        defer_damage = bool(set(getattr(self, "tags", ()) or ()) & STACK_SPEND_BEFORE_DAMAGE_TAGS)
         if sim is not None:
             sim.current_activation = activation
+            if defer_damage:
+                prev_defer = sim.defer_damage_triggers
+                sim.defer_damage_triggers = True
+                deferred_start = len(sim.deferred_damage_triggers)
         try:
             if act_type == "channel" and act_dur > 0.0:
                 self._start_channel(caster, ability_target, sim, act_dur)
@@ -1815,6 +1852,10 @@ class Ability:
                 )
         finally:
             if sim is not None:
+                if defer_damage:
+                    sim.defer_damage_triggers = False
+                    flush_deferred_damage_triggers(sim, deferred_start)
+                    sim.defer_damage_triggers = prev_defer
                 sim.current_activation = prev_activation
 
         tracker = getattr(sim, "tracker", None)

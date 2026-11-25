@@ -4,6 +4,26 @@ import heapq
 from src.swtorsim.metrics import Metrics
 from src.swtorsim.triggers import TriggerManager
 
+# These casts spend a stack on post-activate (Tactical Advantage, Upper Hand). A damage trigger on
+# that same cast has to see the spent stack: Corrosive Return refunds only when none would remain.
+STACK_SPEND_BEFORE_DAMAGE_TAGS = frozenset({
+    "tag.abl.agent.tactic",
+    "tag.abl.smuggler.exploit",
+})
+
+
+def flush_deferred_damage_triggers(sim, start: int = 0) -> None:
+    """Runs damage-dealt/taken dispatches parked since ``start`` (see ``Simulation.defer_damage_triggers``)."""
+    pending = getattr(sim, "deferred_damage_triggers", None)
+    triggers = getattr(sim, "triggers", None)
+    if not pending or triggers is None or start >= len(pending):
+        return
+    mine = pending[start:]
+    del pending[start:]
+    for event_name, ctx in mine:
+        triggers.dispatch(event_name, sim, ctx)
+
+
 def sim_log(sim, message: str, timestamp: float | None = None) -> None:
     """Verbose console line stamped with fight-relative time (works with lightweight test sims)."""
     if sim is None or not getattr(sim, "verbose", True):
@@ -45,6 +65,10 @@ class Simulation:
         # Token of the ability activation whose effects are executing (None outside one). Effects (re)applied
         # during it (e.g. Lightning Effusion on a crit) skip its on_ability_post_activate.
         self.current_activation = None
+        # While an activation is executing, on_damage_dealt / on_damage_taken wait until its
+        # on_ability_post_activate has run (tactic spends, Fatality), then flush in hit order.
+        self.defer_damage_triggers = False
+        self.deferred_damage_triggers: list[tuple[str, dict]] = []
         # HitGroup of the branch being executed (damage action followed by more actions); None outside one (see events.HitGroup).
         self.hit_group = None
         self.verbose = verbose

@@ -4,6 +4,13 @@
 
 ## Completed Fixes
 
+### 115. Lethality Fatality and Corrosive Return grant Tactical Advantage (`src/swtorsim/abilities.py`, `src/swtorsim/engine.py`, `src/swtorsim/events.py`, `src/swtorsim/triggers.py`, `tests/test_lethality_ta.py`)
+- Fatality (passive) already made the next Corrosive Assault cost no energy. Its refund, and Corrosive Return (choice 23 option 1), are instant effects tagged `tag.abl.agent.ta_granter`. Those were never applied to the player, so Tactical Advantage's `on_effect_received` listener never saw them and no stack was granted. An instant effect with that tag (and the Smuggler `uh_granter` twin) now announces `on_effect_received`.
+- Corrosive Return refunds only when the Corrosive Assault would leave zero Tactical Advantage. The check is on the hit, and the stack is spent on post-activate, so the hit was looking at the stack still being there and the refund never ran. Casts tagged `tag.abl.agent.tactic` or `tag.abl.smuggler.exploit` hold their damage-dealt and damage-taken triggers until that post-activate has spent the stack.
+- With one stack and Fatality up, Corrosive Assault is free, Corrosive Return restores the spent stack immediately, and Fatality's regrant follows about 0.1s later (two stacks). With two stacks, Corrosive Return does not refund. Without the choice, the last stack is spent. Shiv does not grant another Fatality while the 10s lockout (alacrity-scaled) is still running.
+- Tests: `tests/test_lethality_ta.py` (2). Full `unittest discover`: 56 tests, all passing. `tools/pyclean.exe` is not on this machine; the suite ran with Python 3.14.
+- DPS, one seed per loadable config: Lethality 45560.9736 -> 48871.9141 (+7.267%). Unchanged: Darkness 23913.4591, Dirty Fighting 60774.8416, Hatred 53046.1844, Immortal 45473.5666, Pyrotech 52766.4158. Annihilation, Arsenal, Carnage, and Marksmanship were skipped; their rotation or config files did not load.
+
 ### 114. PTS is the default environment on the web UI (`tools/simulator_ui.html`, `tools/rotation_builder_ui.html`, `dist/index.html`, `dist/rotation_builder.html`)
 - The Live / PTS toggle opens on PTS (8.0). The simulator level field opens at 85, the PTS level `setEnvironment` already writes when that side is chosen. Choosing Live still sets the level to 80. A saved run config that names its own environment still switches the toggle when it is loaded.
 - UI only. No tests cover the toggle. No damage math.

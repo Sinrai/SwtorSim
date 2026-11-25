@@ -148,6 +148,17 @@ class TriggerManager:
         if not entries:
             return
 
+        # An activating cast spends its costs and procs (Tactical Advantage, Fatality) on
+        # post-activate, and the hit's damage triggers see that result. Park them until the cast flushes.
+        if (
+            event_name in ("on_damage_dealt", "on_damage_taken")
+            and getattr(sim, "defer_damage_triggers", False)
+        ):
+            pending = getattr(sim, "deferred_damage_triggers", None)
+            if pending is not None:
+                pending.append((event_name, dict(context)))
+                return
+
         event_tags = frozenset(context.get("tags") or [])
         # Per-caster (rate-limit mods, proc-chance mods), valid until a branch runs and may change effects.
         trigger_mods = {}
