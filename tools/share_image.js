@@ -173,9 +173,30 @@
     return icons[slug(rowName)] || (inner ? icons[slug(inner[1])] : "") || "";
   }
 
+  // The chosen option of every skill tree level that has one, highest level first.
+  // tree: { level: { "1"|"2"|"3": [{ name, icon }, ...] } }, choices: { level: 1|2|3 }.
+  // The first entry of a slot is the option itself (the rest are base abilities it leaves in place).
+  function shareTreePicks(tree, choices) {
+    const out = [];
+    const levels = Object.keys(tree || {}).sort((a, b) => (parseInt(b, 10) || 0) - (parseInt(a, 10) || 0));
+    for (const lvl of levels) {
+      const slot = String((choices || {})[lvl]);
+      if (!["1", "2", "3"].includes(slot)) continue;
+      const primary = ((tree[lvl] || {})[slot] || [])[0] || null;
+      out.push({
+        level: lvl,
+        slot: Number(slot),
+        name: (primary && primary.name) || `Option ${slot}`,
+        icon: (primary && primary.icon) || "",
+      });
+    }
+    return out;
+  }
+
   function shareIconNames(res) {
     const snap = res.rotation_snapshot || {};
     const out = new Set(Object.values(snap.icons || {}));
+    for (const pk of ((res._shareContext || {}).treePicks || [])) out.add(pk.icon);
     return [...out].filter(Boolean);
   }
 
@@ -728,6 +749,42 @@
       y += h + GAP;
     }
 
+    // ---- Skill tree choices (both image kinds; one strip per image, last card) ----
+    {
+      const picks = Array.isArray(sc.treePicks) ? sc.treePicks : [];
+      if (picks.length) {
+        // At most 8 per row, rows kept even (9 picks -> 5 + 4, not 8 + 1).
+        const rows = Math.ceil(picks.length / 8);
+        const cols = Math.ceil(picks.length / rows);
+        const cw = (inner - 40) / cols;
+        const ICON = 36;
+        const ROWH = 96;
+        const code = picks.map((pk) => `L${pk.level}:${pk.slot}`).join(" ");
+        const h = card(PAD, y, inner, "SKILL TREE CHOICES", "", (top) => {
+          picks.forEach((pk, i) => {
+            const cx = PAD + 20 + (i % cols) * cw + cw / 2;
+            const ry = top + 6 + Math.floor(i / cols) * ROWH;
+            p.rect(cx - ICON / 2 - 3, ry - 3, ICON + 6, ICON + 6, C.accentBg, 7, C.accent);
+            const im = iconOf(pk.icon);
+            if (im) p.img(im, cx - ICON / 2, ry, ICON);
+            else { p.font(14, 700); p.text(pk.slot, cx, ry + 24, C.muted, "center"); }
+            p.font(11, 700);
+            p.text(`L${pk.level}`, cx, ry + ICON + 18, C.muted, "center");
+            p.font(11, 400);
+            const lines = p.wrap(pk.name, cw - 12);
+            const shown = lines.slice(0, 2);
+            if (lines.length > 2) shown[1] = p.fit(lines.slice(1).join(" "), cw - 12);
+            shown.forEach((ln, li) => p.text(ln, cx, ry + ICON + 34 + li * 14, C.text, "center"));
+          });
+          const end = top + 6 + rows * ROWH;
+          p.font(11, 400);
+          p.text(p.fit(code, inner - 40), PAD + 20, end + 2, C.muted);
+          return end + 10;
+        });
+        y += h + GAP;
+      }
+    }
+
     // ---- Footer ----
     p.font(12, 400);
     p.text("SwtorSim is in beta, think critically", PAD, y + 8, C.muted);
@@ -947,5 +1004,5 @@
     redraw();
   }
 
-  global.ShareImage = { open: openShareDialog, paintShareCard, renderShareCanvas, shareRuleText };
+  global.ShareImage = { open: openShareDialog, paintShareCard, renderShareCanvas, shareRuleText, treePicks: shareTreePicks };
 })(window);

@@ -210,7 +210,10 @@ TRIGGERED_BRANCHES_PATCHES = [
     ),
     (
         "log around execute",
-        "            if branch.run_if_none_ran and any(b in executed_branches for b in branch.run_if_none_ran):\n"
+        "            if branch.run_if_none_ran and any(\n"
+        "                self._gate_branch_ran(b, trigger_name, executed_branches, caster, target, sim, branch_context)\n"
+        "                for b in branch.run_if_none_ran\n"
+        "            ):\n"
         "                continue\n"
         "\n"
         "            ran, success = branch.execute(\n"
@@ -229,7 +232,10 @@ TRIGGERED_BRANCHES_PATCHES = [
         "                }\n"
         "                lifecycle_log.append(record)\n"
         "\n"
-        "            if branch.run_if_none_ran and any(b in executed_branches for b in branch.run_if_none_ran):\n"
+        "            if branch.run_if_none_ran and any(\n"
+        "                self._gate_branch_ran(b, trigger_name, executed_branches, caster, target, sim, branch_context)\n"
+        "                for b in branch.run_if_none_ran\n"
+        "            ):\n"
         "                if record is not None:\n"
         '                    record["outcome"] = "skipped_else_gate"\n'
         "                continue\n"

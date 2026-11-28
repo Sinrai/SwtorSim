@@ -4,6 +4,11 @@
 
 ## Completed Fixes
 
+### 126. Skill tree choices on the Share Image (`tools/share_image.js`, `tools/simulator_ui.html`, `tools/rotation_builder_ui.html`, `tests/test_share_image.py`)
+- Every share image (summary, separate rotation image, Rotation Builder image) now has a **SKILL TREE CHOICES** card at the bottom of the image, just above the footer: one icon per chosen option with its level and name, highest level first, and a pick code line (`L85:1 L80:2 ...`) under it. Levels with no pick are left out. At most 8 icons per row, rows balanced (9 picks -> 5 + 4). A missing icon shows the slot number instead. With the rotation on the summary card the image has one strip, not two.
+- `ShareImage.treePicks(tree, choices)` (new, exported) builds the list; both pages put it in `_shareContext.treePicks` (simulator: `CURRENT_SKILL_TREE` / `CURRENT_CHOICES` at run time; builder: `currentLoadout.skill_tree` / `choices`). `shareIconNames` also loads the pick icons.
+- Tests: `ShareImageUiContractTests.test_tree_choices_strip_is_wired_on_both_pages`. Full run: 732 tests, same 7 failures and 18 errors as before the change. Checked the painter on a scratch page (9 picks, one without an icon): layout, icons and the code line draw correctly; not checked inside a full simulator run. No combat-math change. `dist/` not rebuilt.
+
 ### 125. Custom / Pre-set dropdowns look the same everywhere (`tools/simulator_ui.html`, `tools/rotation_builder_ui.html`)
 - The simulator's run config, build, and rotation dropdowns and the Rotation Builder's rotation dropdown all use two groups, **Custom** then **Pre-set**. Before, run configs and builds said "★ My Custom Files" / "Preset Configurations" / "Preset Builds", and custom items had a star and ".json".
 - Items show the file name without ".json", with underscores as spaces (`Annihilation_Parse_float.json` -> "Annihilation Parse float"). The simulator uses one helper, `dropdownFileName`.
@@ -3857,3 +3862,10 @@ Added a "Beta" pill next to the app name and a dismissible bug-report banner (li
 - Updated `tools/build_web_release.py` to clean `dist/icons/` before copying (preventing Windows NTFS from preserving mixed-case filenames), copy icons from `tools/web/icons`, `data/extractor/live/icons`, and `data/extractor/pts/icons`, and normalize all output icon filenames to lowercase for case-sensitive web hosts.
 - Updated `tools/debugger_ui.html` (`iconUrl`, `ic`, `iconImage`) to fall back to lowercase icon filenames on load error, matching the other web UI pages.
 - Added regression checks in `tests/test_debug_web_build.py` and rebuilt `dist/`.
+
+## 2026-11-28 - Suppressive Fire (and Sweeping Gunfire) no longer cancel themselves at channel start
+- **Bug:** Suppressive Fire cast every 1.3s and dealt 0 damage. Effect 1's damage (branch 2) and energy spend (branch 5) listen to `on_tick`; its `ability_cancel` (branch 6, `run_if_none_ran: [5]`) listens to `on_apply`. At `on_apply` branch 5 can never be in the "ran" set, so the cancel always fired. Force Lightning / Full Auto were fine because their tick branch also lists `on_apply`.
+- **Fix:** `src/swtorsim/abilities.py` new `Effect._gate_branch_ran`, used by the else gate in `execute_triggered_branches`. A gated branch that listens to another trigger counts as "ran" when its own conditions pass (cancel fires only when the spend could not run, i.e. under 5 energy). Gates on the same trigger behave as before. Smuggler Sweeping Gunfire has the same data shape and is covered too (not run).
+- **Tooling:** `tools/gen_debug_engine.py` anchor updated; `src/swtorsim/debug/generated/abilities_traced.py` regenerated (`--check` is clean).
+- **Tests:** new `tests/test_channel_else_gate_cross_trigger.py` (2). Full suite: 734 tests, 7 failures, 18 errors, 3 skipped, the same count as the previous entry. `tools/dps_baseline.py --compare`: all 7 runnable configs unchanged. Suppressive Fire repro (Crouch + channel, 30s): 0 -> ticking damage every 0.43s.
+- **Open:** the first tick lands after one tick interval, not at activation.

@@ -3023,6 +3023,7 @@
       legendaries: [selText("legendary1Select"), selText("legendary2Select")].filter(Boolean),
       relics: [...new Set([selText("relic1Select"), selText("relic2Select")].filter(Boolean))],
       tacticalNames,
+      treePicks: window.ShareImage ? ShareImage.treePicks(CURRENT_SKILL_TREE, CURRENT_CHOICES) : [],
       settings: {
         dummy_hp: payload.dummy_hp,
         duration: payload.duration,

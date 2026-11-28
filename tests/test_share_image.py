@@ -153,6 +153,22 @@ class ShareImageUiContractTests(unittest.TestCase):
         # The ability breakdown is always on the summary card.
         self.assertNotIn("shareOptBreakdown", js)
 
+    def test_tree_choices_strip_is_wired_on_both_pages(self):
+        js = self._read("tools", "share_image.js")
+        self.assertIn('"SKILL TREE CHOICES"', js)
+        self.assertIn("treePicks: shareTreePicks", js)
+        self.assertIn("sc.treePicks", js)  # drawn for both image kinds, outside the summary-only block
+        # Last card of the image: after the summary and rotation cards, before the footer.
+        self.assertGreater(js.index('"SKILL TREE CHOICES"'), js.index('if (kind === "summary") {'))
+        self.assertLess(js.index('"SKILL TREE CHOICES"'), js.index("// ---- Footer ----"))
+        self.assertIn(
+            "ShareImage.treePicks(CURRENT_SKILL_TREE, CURRENT_CHOICES)", self._read("tools", "simulator_ui.html")
+        )
+        self.assertIn(
+            "ShareImage.treePicks(currentLoadout.skill_tree, currentLoadout.choices)",
+            self._read("tools", "rotation_builder_ui.html"),
+        )
+
     def test_web_release_copies_share_image(self):
         self.assertIn('DIST_DIR / "share_image.js"', self._read("tools", "build_web_release.py"))
 

@@ -226,6 +226,25 @@ class Effect:
         """True if the effect evaluates immediately and does not live on an actor."""
         return not self.is_persistent
 
+    def _gate_branch_ran(self, index, trigger_name, executed_branches, caster, target, sim, context) -> bool:
+        """Whether the else-gated branch ``index`` counts as having run for this event.
+
+        A branch that listens to the current trigger counts only if it ran in this event. A branch that listens to a
+        different trigger can never run here (Suppressive Fire's cancel is ``on_apply``, its spend branch ``on_tick``),
+        so it counts when its conditions pass: the else branch fires only when the gated branch could not run."""
+        if index in executed_branches:
+            return True
+        gate = next((b for b in self.branches if getattr(b, "index", None) == index), None)
+        if gate is None:
+            return False
+        triggers = getattr(gate, "triggers", None) or []
+        if not triggers or any(t.get("trigger") == trigger_name for t in triggers):
+            return False
+        if not gate.conditions:
+            return True
+        gate_target = _resolve_target_overrides(gate.target_overrides, target, caster, context)
+        return bool(validate_all(gate.conditions, caster, gate_target, sim=sim, context=context))
+
     def execute_triggered_branches(
         self,
         trigger_name: str,
@@ -292,7 +311,10 @@ class Effect:
                 if not matched:
                     continue
 
-            if branch.run_if_none_ran and any(b in executed_branches for b in branch.run_if_none_ran):
+            if branch.run_if_none_ran and any(
+                self._gate_branch_ran(b, trigger_name, executed_branches, caster, target, sim, branch_context)
+                for b in branch.run_if_none_ran
+            ):
                 continue
 
             ran, success = branch.execute(

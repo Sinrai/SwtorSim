@@ -5282,7 +5282,11 @@ function openRotationImage() {
     environment: currentEnvironment,
     _rotationLabel: filename.replace(/\.json$/i, ""),
     rotation_snapshot: builderRotationSnapshot(),
-    _shareContext: { ran_at: new Date().toISOString(), tacticalNames },
+    _shareContext: {
+      ran_at: new Date().toISOString(),
+      tacticalNames,
+      treePicks: ShareImage.treePicks(currentLoadout.skill_tree, currentLoadout.choices),
+    },
   }, { button: document.getElementById("rotationImageBtn") });
 }
 
