@@ -1100,7 +1100,7 @@
     font-size: 14px;
   }
 </style>
-  <script src="pyodide_client.js?v=1795878218"></script>
+  <script src="pyodide_client.js?v=1795882628"></script>
 </head>
 <body>
 
@@ -3024,6 +3024,7 @@
       legendaries: [selText("legendary1Select"), selText("legendary2Select")].filter(Boolean),
       relics: [...new Set([selText("relic1Select"), selText("relic2Select")].filter(Boolean))],
       tacticalNames,
+      treePicks: window.ShareImage ? ShareImage.treePicks(CURRENT_SKILL_TREE, CURRENT_CHOICES) : [],
       settings: {
         dummy_hp: payload.dummy_hp,
         duration: payload.duration,
